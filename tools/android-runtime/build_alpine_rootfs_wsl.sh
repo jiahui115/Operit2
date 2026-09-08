@@ -23,11 +23,11 @@ packages=(
     ca-certificates
 )
 
-abis=(
-    arm64-v8a
-    armeabi-v7a
-    x86_64
-)
+if [ -n "${OPERIT_ANDROID_RUNTIME_ABIS:-}" ]; then
+    read -r -a abis <<< "$OPERIT_ANDROID_RUNTIME_ABIS"
+else
+    abis=(arm64-v8a armeabi-v7a x86_64)
+fi
 
 alpine_arch_for_abi() {
     case "$1" in

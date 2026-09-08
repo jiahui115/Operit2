@@ -18,6 +18,12 @@ from common import (
     write_properties,
 )
 
+ANDROID_TARGET_PLATFORM_TO_ABI = {
+    "android-arm64": "arm64-v8a",
+    "android-arm": "armeabi-v7a",
+    "android-x64": "x86_64",
+}
+
 
 def ensure_android_signing() -> None:
     signing_properties = RELEASE_DIR / "secrets" / "android-signing.properties"
@@ -64,6 +70,11 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build the Operit2 Android Flutter app.")
     parser.add_argument("--build-name")
     parser.add_argument("--build-number")
+    parser.add_argument(
+        "--target-platform",
+        choices=tuple(ANDROID_TARGET_PLATFORM_TO_ABI),
+        help="Build only one Android target platform; omit to build every ABI.",
+    )
     parser.add_argument("--enforce-lockfile", action="store_true")
     parser.add_argument("--skip-signing", action="store_true")
     parser.add_argument("--dist-dir", type=Path, default=DIST_DIR)
@@ -82,6 +93,8 @@ def main() -> int:
         if args.enforce_lockfile:
             flutter_pub_get(enforce_lockfile=True)
         command = [flutter, "build", "apk", "--release", "--no-pub", "--split-per-abi"]
+        if args.target_platform:
+            command.extend(["--target-platform", args.target_platform])
         if args.build_name:
             command.extend(["--build-name", args.build_name])
         if args.build_number:
@@ -94,7 +107,15 @@ def main() -> int:
         "armeabi-v7a": "app-armeabi-v7a-release.apk",
         "x86_64": "app-x86_64-release.apk",
     }
-    for abi, filename in outputs.items():
+    if args.target_platform:
+        selected_outputs = {
+            ANDROID_TARGET_PLATFORM_TO_ABI[args.target_platform]: outputs[
+                ANDROID_TARGET_PLATFORM_TO_ABI[args.target_platform]
+            ]
+        }
+    else:
+        selected_outputs = outputs
+    for abi, filename in selected_outputs.items():
         copy_required_file(apk_dir / filename, args.dist_dir / f"operit2-app-android-{abi}.apk")
     return 0
 
