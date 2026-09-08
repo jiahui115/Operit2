@@ -11,6 +11,10 @@ $items = @(
     @{
         Name = "busybox-1.38.0"
         Url = "https://busybox.net/downloads/busybox-1.38.0.tar.bz2"
+        Urls = @(
+            "https://busybox.net/downloads/busybox-1.38.0.tar.bz2",
+            "https://raw.githubusercontent.com/Edge-Tools/busybox-wasm/main/upstream/busybox-1.38.0.tar.bz2"
+        )
         Archive = "busybox-1.38.0.tar.bz2"
         Sha256 = "34F9EA6FF8636F2C9241153B9114EEFA9E65674A45318AE1EF95BB5F31C53BB2"
         Extracted = "busybox-1.38.0"
@@ -40,8 +44,29 @@ $items = @(
 
 foreach ($item in $items) {
     $archivePath = Join-Path $downloadsDir $item.Archive
-    Write-Host "Downloading $($item.Name)"
-    Invoke-WebRequest -Uri $item.Url -OutFile $archivePath
+    $urls = if ($item.ContainsKey("Urls")) { @($item.Urls) } else { @($item.Url) }
+    $downloaded = $false
+    foreach ($url in $urls) {
+        for ($attempt = 1; $attempt -le 2; $attempt++) {
+            if (Test-Path $archivePath) {
+                Remove-Item -LiteralPath $archivePath -Force
+            }
+            try {
+                Write-Host "Downloading $($item.Name) from $url (attempt $attempt)"
+                Invoke-WebRequest -Uri $url -OutFile $archivePath -TimeoutSec 90
+                $downloaded = $true
+                break
+            } catch {
+                Write-Warning "Download failed: $($_.Exception.Message)"
+            }
+        }
+        if ($downloaded) {
+            break
+        }
+    }
+    if (-not $downloaded) {
+        throw "Unable to download $($item.Name) from any configured URL"
+    }
 
     $actualSha256 = (Get-FileHash -Algorithm SHA256 -Path $archivePath).Hash.ToUpperInvariant()
     if ($actualSha256 -ne $item.Sha256) {

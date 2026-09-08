@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - .github/workflows/android-arm64-build.yml
+      - tools/android-runtime/fetch_sources.ps1
 
 permissions:
   contents: read
